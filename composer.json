@@ -1,0 +1,29 @@
+{
+  "name": "wangjian/queue",
+  "description": "消息队列，支持多种驱动，以及完善的容错机制",
+  "license": "MIT",
+  "keywords": ["queue"],
+  "authors": [
+    {
+      "name": "Wangjian",
+      "email": "1636801376@qq.com"
+    }
+  ],
+  "require": {
+    "php": ">=5.6.0",
+    "predis/predis": "^1.1.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^4.8"
+  },
+  "autoload": {
+    "psr-4": {
+      "Wangjian\\Queue\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Wangjian\\Queue\\Test\\": "tests"
+    }
+  }
+}
