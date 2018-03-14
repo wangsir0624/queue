@@ -1,6 +1,9 @@
 <?php
 namespace Wangjian\Queue\Job;
 
+use Exception\SkipRetryException;
+use Exception;
+
 abstract class AbstractJob
 {
     /**
@@ -55,7 +58,9 @@ abstract class AbstractJob
 
     /**
      * run the job
-     * @return mixed
+     * @return mixed  the queue will retry this job when returns false
+     * @throws SkipRetryException  the queue will skip the retry when throws a SkipRetryException
+     * @throws Exception  the queue will retry this job when throws an Exception
      */
     abstract public function run();
 

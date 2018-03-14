@@ -13,24 +13,44 @@ class RedisQueue implements QueueInterface
      */
     protected $client;
 
+    /**
+     * the queue prefix
+     * @var string
+     */
     protected $prefix = '';
 
+    /**
+     * RedisQueue constructor
+     * @param Client $client
+     * @param string $prefix
+     */
     public function __construct(Client $client, $prefix = '')
     {
         $this->client = $client;
         $this->prefix = $prefix;
     }
 
+    /**
+     * push a job to the queue
+     * @param AbstractJob $job
+     * @return bool
+     */
     public function push(AbstractJob $job)
     {
-        $this->client->rpush(
-            $this->getQueueNameWithPrefix($job->queue()),
+        return $this->client->rpush(
+            $this->getQueueNameWithPrefix($job->getQueue()),
             serialize($job)
         );
     }
 
+    /**
+     * get a job from the queue
+     * @param string $queue
+     * @return AbstractJob|null
+     */
     public function pop($queue)
     {
+        //migrate the retry jobs
         $this->migrateRetryJobs($queue);
 
         $data = $this->client->lpop($this->getQueueNameWithPrefix($queue));
@@ -45,12 +65,17 @@ class RedisQueue implements QueueInterface
         return null;
     }
 
-    public function retryAt(AbstractJob $job, $timestamp)
+    /**
+     * retry a job
+     * @param AbstractJob $job
+     * @return bool
+     */
+    public function retry(AbstractJob $job)
     {
         if ($job->shouldRetry()) {
             return $this->client->zadd(
-                $this->getRetryZsetNameWithPrefix($job->queue()),
-                $timestamp,
+                $this->getRetryZsetNameWithPrefix($job->getQueue()),
+                $job->getRetryTime(),
                 serialize($job)
             );
         }
@@ -66,11 +91,21 @@ class RedisQueue implements QueueInterface
 EOT;
     }
 
+    /**
+     * get the queue name with prefix
+     * @param string $queue
+     * @return string
+     */
     protected function getQueueNameWithPrefix($queue)
     {
         return $this->prefix . (empty($this->prefix) ? '' : ':') . $queue;
     }
 
+    /**
+     * get the retry zset name of a queue with prefix
+     * @param string $queue
+     * @return string
+     */
     protected function getRetryZsetNameWithPrefix($queue)
     {
         return $this->getQueueNameWithPrefix($queue) . ':retry';

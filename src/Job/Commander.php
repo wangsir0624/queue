@@ -13,11 +13,20 @@ class Commander
      */
     protected $queue;
 
+    /**
+     * Commander constructor
+     * @param QueueInterface $queue
+     */
     public function __construct(QueueInterface $queue)
     {
         $this->queue = $queue;
     }
 
+    /**
+     * execute job
+     * @param AbstractJob $job
+     * @throws Exception
+     */
     public function handle(AbstractJob $job)
     {
         try {
@@ -27,7 +36,7 @@ class Commander
         } catch (SkipRetryException $e) {
         } catch (Exception $e) {
             $job->failed();
-            $this->queue->retryAt($job, $job->getRetryTime());
+            $this->queue->retry($job);
         }
     }
 }
