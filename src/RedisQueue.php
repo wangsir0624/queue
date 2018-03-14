@@ -3,7 +3,6 @@ namespace Wangjian\Queue;
 
 use Predis\Client;
 use Wangjian\Queue\Job\AbstractJob;
-use Wangjian\Queue\Job\Job;
 
 class RedisQueue implements QueueInterface
 {
