@@ -5,5 +5,4 @@ use Exception;
 
 class SkipRetryException extends Exception
 {
-
 }

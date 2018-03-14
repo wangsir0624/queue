@@ -3,5 +3,4 @@ namespace Wangjian\Queue;
 
 interface QueueInterface
 {
-
 }

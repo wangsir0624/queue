@@ -35,9 +35,9 @@ class RedisQueue implements QueueInterface
 
         $data = $this->client->lpop($this->getQueueNameWithPrefix($queue));
 
-        if(!empty($data)) {
+        if (!empty($data)) {
             $job = @unserialize($data);
-            if($job instanceof AbstractJob) {
+            if ($job instanceof AbstractJob) {
                 return $job;
             }
         }
@@ -47,7 +47,7 @@ class RedisQueue implements QueueInterface
 
     public function retryAt(AbstractJob $job, $timestamp)
     {
-        if($job->shouldRetry()) {
+        if ($job->shouldRetry()) {
             return $this->client->zadd(
                 $this->getRetryZsetNameWithPrefix($job->queue()),
                 $timestamp,
