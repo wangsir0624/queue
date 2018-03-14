@@ -65,11 +65,20 @@ abstract class AbstractJob
     abstract public function run();
 
     /**
+     * get the job id
+     * @return string
+     */
+    public function getId()
+    {
+        return $this->_id;
+    }
+
+    /**
      * set the queue
      * @param string $queue  the queue name
      * @return $this
      */
-    public function onQueue($queue)
+    public function setQueue($queue)
     {
         $this->queue = $queue;
 
@@ -83,6 +92,18 @@ abstract class AbstractJob
     public function getQueue()
     {
         return $this->queue;
+    }
+
+    /**
+     * set the job name
+     * @param string $name
+     * @return $this
+     */
+    public function setName($name)
+    {
+        $this->name = $name;
+
+        return $this;
     }
 
     /**

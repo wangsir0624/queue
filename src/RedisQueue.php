@@ -51,7 +51,7 @@ class RedisQueue implements QueueInterface
     public function pop($queue)
     {
         //migrate the retry jobs
-        var_dump($this->migrateRetryJobs($queue));
+        $this->migrateRetryJobs($queue);
 
         $data = $this->client->lpop($this->getQueueNameWithPrefix($queue));
 
