@@ -25,7 +25,7 @@ $client = new \Predis\Client([
 ]);
 
 $queue = new \Wangjian\Queue\RedisQueue($client);
-$queue->push(new MyJob());
+//$queue->push(new MyJob());
 $job = $queue->pop('test');
 var_dump($job);
 $commander = new \Wangjian\Queue\Job\Commander($queue);

@@ -37,7 +37,7 @@ class RedisQueue implements QueueInterface
      */
     public function push(AbstractJob $job)
     {
-        return $this->client->rpush(
+        return (bool)$this->client->rpush(
             $this->getQueueNameWithPrefix($job->getQueue()),
             serialize($job)
         );
@@ -51,7 +51,7 @@ class RedisQueue implements QueueInterface
     public function pop($queue)
     {
         //migrate the retry jobs
-        $this->migrateRetryJobs($queue);
+        var_dump($this->migrateRetryJobs($queue));
 
         $data = $this->client->lpop($this->getQueueNameWithPrefix($queue));
 
@@ -83,12 +83,38 @@ class RedisQueue implements QueueInterface
         return false;
     }
 
+    /**
+     * migrate the retry jobs of a queue
+     * @param string $queue
+     * @return array
+     */
     protected function migrateRetryJobs($queue)
     {
-        // TODO 待完成
-        $luaScript = <<<EOT
+        $luaScript = <<<LUA
+-- Get all of the jobs with an expired "score"...
+local val = redis.call('zrangebyscore', KEYS[1], '-inf', ARGV[1])
 
-EOT;
+-- If we have values in the array, we will remove them from the first queue
+-- and add them onto the destination queue in chunks of 100, which moves
+-- all of the appropriate jobs onto the destination queue very safely.
+if(next(val) ~= nil) then
+    redis.call('zremrangebyrank', KEYS[1], 0, #val - 1)
+
+    for i = 1, #val, 100 do
+        redis.call('rpush', KEYS[2], unpack(val, i, math.min(i+99, #val)))
+    end
+end
+
+return val
+LUA;
+
+        return $this->client->eval(
+            $luaScript,
+            2,
+            $this->getRetryZsetNameWithPrefix($queue),
+            $this->getQueueNameWithPrefix($queue),
+            time()
+        );
     }
 
     /**
