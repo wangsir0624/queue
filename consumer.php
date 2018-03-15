@@ -18,7 +18,7 @@ class MyJob extends \Wangjian\Queue\Job\AbstractJob
 
 $client = new \Predis\Client([
     'schema' => 'tcp',
-    'host' => '172.17.0.4',
+    'host' => 'redis',
     'port' => 6379,
     'database' => 0
 ]);
