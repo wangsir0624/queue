@@ -18,14 +18,14 @@ class MyJob extends \Wangjian\Queue\Job\AbstractJob
 
 $client = new \Predis\Client([
     'schema' => 'tcp',
-    'host' => 'redis',
+    'host' => '172.17.0.4',
     'port' => 6379,
     'database' => 0
 ]);
 
 $queue = new \Wangjian\Queue\RedisQueue($client, 'test');
 
-$worker = new \Wangjian\Queue\Worker($queue);
+$worker = new \Wangjian\Queue\Worker('test', $queue);
 $worker->setWorkers(1);
 $worker->setQueues(['test', 'default']);
 $worker->run();
