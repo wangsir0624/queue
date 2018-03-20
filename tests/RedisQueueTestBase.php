@@ -12,8 +12,6 @@ class RedisQueueTestBase extends TestCase
 
     protected $queue;
 
-    protected $commander;
-
     public function __construct($name = null, array $data = array(), $dataName = '')
     {
         parent::__construct($name, $data, $dataName);
@@ -26,7 +24,6 @@ class RedisQueueTestBase extends TestCase
         ]);
 
         $this->queue = new RedisQueue($this->client, 'test');
-        $this->commander = new Commander($this->queue);
     }
 
     protected function setUp()
