@@ -37,7 +37,7 @@ class Worker
      * the max jobs to restart a worker
      * @var int
      */
-    protected $maxJobs = 1000;
+    protected $maxJobs = 10000;
 
     /**
      * QueueInterface instance
@@ -50,6 +50,30 @@ class Worker
      * @var array
      */
     protected $queues = ['default'];
+
+    /**
+     * callbacks on success
+     * @var array
+     */
+    protected $successCallbacks = [];
+
+    /**
+     * callbacks when skip retry
+     * @var array
+     */
+    protected $skipRetryCallbacks = [];
+
+    /**
+     * callbacks on retry
+     * @var array
+     */
+    protected $retryCallbacks = [];
+
+    /**
+     * callbacks on failure
+     * @var array
+     */
+    protected $failCallbacks = [];
 
     /**
      * the current workers
@@ -142,6 +166,81 @@ class Worker
         $this->maxJobs = $maxJobs;
 
         return $this;
+    }
+
+    /**
+     * register success callbacks
+     * @return bool
+     */
+    public function onSuccess()
+    {
+        $argList = func_get_args();
+        return call_user_func_array([$this, 'on'], array_merge(['success'], $argList));
+    }
+
+    /**
+     * register skip retry callbacks
+     * @return bool
+     */
+    public function onSkipRetry()
+    {
+        $argList = func_get_args();
+        return call_user_func_array([$this, 'on'], array_merge(['skipRetry'], $argList));
+    }
+
+    /**
+     * register retry callbacks
+     * @return bool
+     */
+    public function onRetry()
+    {
+        $argList = func_get_args();
+        return call_user_func_array([$this, 'on'], array_merge(['retry'], $argList));
+    }
+
+    /**
+     * register fail callbacks
+     * @return bool
+     */
+    public function onFail()
+    {
+        $argList = func_get_args();
+        return call_user_func_array([$this, 'on'], array_merge(['fail'], $argList));
+    }
+
+    /**
+     * register callbacks
+     * @return bool
+     * @throws Exception
+     */
+    protected function on()
+    {
+        $argCount = func_num_args();
+        $argList = func_get_args();
+
+        if($argCount < 2) {
+            throw new Exception('this function needs at least two arguments');
+        } else if($argCount == 2) {
+            $event = $argList[0];
+            $callbacks = $argList[1];
+
+            if(is_array($callbacks)) {
+                $callbackName = $event . 'Callbacks';
+                $this->$callbackName = array_merge($this->$callbackName, $callbacks);
+            } else {
+                $callbackName = $event . 'Callbacks';
+                $this->$callbackName = array_merge($this->$callbackName, ['global' => $callbacks]);
+            }
+        } else {
+            $event = $argList[0];
+            $queue = $argList[1];
+            $callback = $argList[2];
+
+            $callbackName = $event . 'Callbacks';
+            $this->$callbackName = array_merge($this->$callbackName, [$queue => $callback]);
+        }
+
+        return true;
     }
 
     /**
@@ -274,10 +373,27 @@ class Worker
                         if ($job->run() === false) {
                             throw new Exception('job run failed');
                         }
+
+                        if(!is_null($callback = $this->getSuccessCallback($job->getQueue()))) {
+                            call_user_func($callback, $job);
+                        }
                     } catch (SkipRetryException $e) {
+                        if(!is_null($callback = $this->getSkipRetryCallback($job->getQueue()))) {
+                            call_user_func($callback, $job, $e);
+                        }
                     } catch (Exception $e) {
                         $job->failed();
-                        $this->queueInstance->retry($job);
+                        if($job->shouldRetry()) {
+                            $this->queueInstance->retry($job);
+
+                            if(!is_null($callback = $this->getRetryCallback($job->getQueue()))) {
+                                call_user_func($callback, $job, $e);
+                            }
+                        } else {
+                            if(!is_null($callback = $this->getFailCallback($job->getQueue()))) {
+                                call_user_func($callback, $job, $e);
+                            }
+                        }
                     }
 
                     $processedJobs++;
@@ -298,5 +414,65 @@ class Worker
         $this->_workers++;
         $this->_workerProcesses[$pid] = $process;
         return true;
+    }
+
+    /**
+     * get success callback on a queue
+     * @param string $queue
+     * @return callable|null
+     */
+    protected function getSuccessCallback($queue)
+    {
+        return $this->getCallback('success', $queue);
+    }
+
+    /**
+     * get skip retry callback on a queue
+     * @param string $queue
+     * @return callable|null
+     */
+    protected function getSkipRetryCallback($queue)
+    {
+        return $this->getCallback('skipRetry', $queue);
+    }
+
+    /**
+     * get retry callback on a queue
+     * @param string $queue
+     * @return callable|null
+     */
+    protected function getRetryCallback($queue)
+    {
+        return $this->getCallback('retry', $queue);
+    }
+
+    /**
+     * get fail callback on a queue
+     * @param string $queue
+     * @return callable|null
+     */
+    protected function getFailCallback($queue)
+    {
+        return $this->getCallback('fail', $queue);
+    }
+
+    /**
+     * get callback registered on a queue
+     * @param string $event
+     * @param string $queue
+     * @return callable|null
+     */
+    protected function getCallback($event, $queue)
+    {
+        $callbackName = $event . 'Callbacks';
+        if(isset($this->$callbackName[$queue])) {
+            return $this->$callbackName[$queue];
+        }
+
+        if(isset($this->$callbackName['global'])) {
+            return $this->$callbackName[$queue];
+        }
+
+        return null;
     }
 }
