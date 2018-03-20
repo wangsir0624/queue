@@ -2,20 +2,12 @@
 namespace Wangjian\Queue;
 
 use Wangjian\Queue\Job\AbstractJob;
-use Wangjian\Queue\Job\Commander;
 use swoole_process;
+use Exception;
+use Exception\SkipRetryException;
 
 class Worker
 {
-    /**
-     * status constants
-     * @const int
-     */
-    const STATUS_READY = 0;
-    const STATUS_RUNNING = 1;
-    const STATUS_PAUSED = 2;
-    const STATUS_STOPPED = 3;
-
     /**
      * the worker name
      * @var string
@@ -53,18 +45,6 @@ class Worker
     protected $queues = ['default'];
 
     /**
-     * Commander instance
-     * @var Commander
-     */
-    protected $commander;
-
-    /**
-     * the worker status
-     * @var int
-     */
-    private $_status = self::STATUS_READY;
-
-    /**
      * the current workers
      * @var int
      */
@@ -82,15 +62,10 @@ class Worker
      * @param QueueInterface $queue
      * @param Commander $commander
      */
-    public function __construct($name, QueueInterface $queue, Commander $commander = null)
+    public function __construct($name, QueueInterface $queue)
     {
         $this->name = $name;
         $this->queueInstance = $queue;
-
-        if(is_null($commander)) {
-            $commander = new Commander($queue);
-        }
-        $this->commander = $commander;
     }
 
     /**
@@ -99,8 +74,6 @@ class Worker
     public function run()
     {
         swoole_set_process_name($this->getMasterProcessName());
-
-        $this->_status = self::STATUS_RUNNING;
 
         $this->forkWorkers();
 
@@ -165,18 +138,6 @@ class Worker
     }
 
     /**
-     * set commander
-     * @param Commander $commander
-     * @return $this
-     */
-    public  function setCommander(Commander $commander)
-    {
-        $this->commander = $commander;
-
-        return $this;
-    }
-
-    /**
      * get the master process name
      * @return string
      */
@@ -209,12 +170,6 @@ class Worker
         swoole_process::signal(SIGQUIT, function() use($worker) {
             $worker->stop();
         });
-        swoole_process::signal(SIGUSR1, function() use($worker) {
-            $worker->pause();
-        });
-        swoole_process::signal(SIGUSR2, function() use($worker) {
-            $worker->unpause();
-        });
         swoole_process::signal(SIGCHLD, function() use($worker) {
             $worker->handleWorkerExit();
         });
@@ -225,9 +180,13 @@ class Worker
      */
     protected function installWorkerSignals()
     {
-        pcntl_signal(SIGTERM, [$this, 'stopWorker']);
-        pcntl_signal(SIGINT, [$this, 'stopWorker']);
-        pcntl_signal(SIGQUIT, [$this, 'stopWorker']);
+        $callable = function() {
+            exit;
+        };
+
+        pcntl_signal(SIGTERM, $callable);
+        pcntl_signal(SIGINT, $callable);
+        pcntl_signal(SIGQUIT, $callable);
     }
 
     /**
@@ -237,28 +196,7 @@ class Worker
     {
         $this->stopAllWorkers();
 
-        $this->_status = self::STATUS_STOPPED;
         exit;
-    }
-
-    /**
-     * pause
-     */
-    protected function pause()
-    {
-        $this->stopAllWorkers();
-
-        $this->_status = self::STATUS_PAUSED;
-    }
-
-    /**
-     * unpause
-     */
-    protected function unpause()
-    {
-        $this->forkWorkers();
-
-        $this->_status = self::STATUS_RUNNING;
     }
 
     /**
@@ -274,19 +212,12 @@ class Worker
     }
 
     /**
-     * stop one worker
-     */
-    protected function stopWorker()
-    {
-        $this->_status = self::STATUS_STOPPED;
-    }
-
-    /**
      * handler worker exit signal
      */
     protected function handleWorkerExit()
     {
         $result = swoole_process::wait();
+        var_dump($result);
         foreach ($this->_workerProcesses as $key => $value) {
             if ($key == $result['pid']) {
                 unset($this->_workerProcesses[$key]);
@@ -315,6 +246,8 @@ class Worker
      */
     protected function createProcess()
     {
+        sleep(3);
+        throw new Exception('');
         $worker = $this;
 
         $process = new swoole_process(function (swoole_process $process) use ($worker) {
@@ -324,7 +257,7 @@ class Worker
 
             $processedJobs = 0;
 
-            while ($processedJobs < $worker->maxJobs && $worker->_status == self::STATUS_RUNNING) {
+            while ($processedJobs < $worker->maxJobs) {
                 $job = null;
                 foreach ($worker->queues as $queue) {
                     $job = $worker->queueInstance->pop($queue);
@@ -334,7 +267,15 @@ class Worker
                 }
 
                 if ($job instanceof AbstractJob) {
-                    $worker->commander->handle($job);
+                    try {
+                        if ($job->run() === false) {
+                            throw new Exception('job run failed');
+                        }
+                    } catch (SkipRetryException $e) {
+                    } catch (Exception $e) {
+                        $job->failed();
+                        $this->queueInstance->retry($job);
+                    }
                 } else {
                     sleep($worker->sleep);
                 }
