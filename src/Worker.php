@@ -5,9 +5,16 @@ use Wangjian\Queue\Job\AbstractJob;
 use swoole_process;
 use Exception;
 use Exception\SkipRetryException;
+use ErrorException;
 
 class Worker
 {
+    /**
+     * exit code when worker processed enough jobs
+     * @const int
+     */
+    const MAX_JOBS_EXIT_CODE = 100;
+
     /**
      * the worker name
      * @var string
@@ -217,7 +224,6 @@ class Worker
     protected function handleWorkerExit()
     {
         $result = swoole_process::wait();
-        var_dump($result);
         foreach ($this->_workerProcesses as $key => $value) {
             if ($key == $result['pid']) {
                 unset($this->_workerProcesses[$key]);
@@ -225,7 +231,7 @@ class Worker
             }
         }
 
-        if(!$result['signal']) {
+        if($result['code'] == self::MAX_JOBS_EXIT_CODE) {
             $this->forkWorkers();
         }
     }
@@ -246,8 +252,6 @@ class Worker
      */
     protected function createProcess()
     {
-        sleep(3);
-        throw new Exception('');
         $worker = $this;
 
         $process = new swoole_process(function (swoole_process $process) use ($worker) {
@@ -256,7 +260,6 @@ class Worker
             $worker->installWorkerSignals();
 
             $processedJobs = 0;
-
             while ($processedJobs < $worker->maxJobs) {
                 $job = null;
                 foreach ($worker->queues as $queue) {
@@ -276,12 +279,16 @@ class Worker
                         $job->failed();
                         $this->queueInstance->retry($job);
                     }
+
+                    $processedJobs++;
                 } else {
                     sleep($worker->sleep);
                 }
 
                 pcntl_signal_dispatch();
             }
+
+            exit(self::MAX_JOBS_EXIT_CODE);
         }, false, false);
         $pid = $process->start();
         if($pid === false) {
