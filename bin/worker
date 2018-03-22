@@ -1,0 +1,24 @@
+#!php
+<?php
+foreach([
+    __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../../autoload.php'
+] as $file) {
+    if(file_exists($file)) {
+        define('COMPOSER_AUTOLOAD', realpath($file));
+        require_once COMPOSER_AUTOLOAD;
+        break;
+    }
+}
+
+$console = new \Symfony\Component\Console\Application('queue.worker', '1.0.0');
+
+//add commands
+$commands = [];
+foreach(glob(__DIR__ . '/../src/Console/*.php') as $filename) {
+    $className = "Wangjian\\Queue\\Console\\" . pathinfo($filename, PATHINFO_FILENAME);
+    $commands[] = new $className();
+}
+$console->addCommands($commands);
+
+$console->run();
