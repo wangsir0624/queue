@@ -1,4 +1,4 @@
-#!php
+#!/usr/bin/env php
 <?php
 foreach([
     __DIR__ . '/../vendor/autoload.php',
@@ -11,14 +11,12 @@ foreach([
     }
 }
 
-$console = new \Symfony\Component\Console\Application('queue.worker', '1.0.0');
+$console = new \Symfony\Component\Console\Application('queue consumer worker', '1.0.0');
 
 //add commands
-$commands = [];
 foreach(glob(__DIR__ . '/../src/Console/*.php') as $filename) {
     $className = "Wangjian\\Queue\\Console\\" . pathinfo($filename, PATHINFO_FILENAME);
-    $commands[] = new $className();
+    $console->add(new $className());
 }
-$console->addCommands($commands);
 
 $console->run();
