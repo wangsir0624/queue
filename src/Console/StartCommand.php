@@ -33,8 +33,8 @@ class StartCommand extends Command
     {
         //check whether the worker is already running
         $workerName = $input->getArgument('name');
-        exec("ps -ef | grep queue:master:$workerName", $out, $return);
-        if(count($out) >= 3) {
+        exec("ps -ef | awk '$8 == \"queue:master:$workerName\" {print $2}'", $out, $return);
+        if(!empty($out)) {
             $output->writeln('<info>the worker is already running...</info>');
             exit;
         }
