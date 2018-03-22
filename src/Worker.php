@@ -10,12 +10,6 @@ use ErrorException;
 class Worker
 {
     /**
-     * exit code when worker processed enough jobs
-     * @const int
-     */
-    const MAX_JOBS_EXIT_CODE = 100;
-
-    /**
      * the worker name
      * @var string
      */
@@ -330,7 +324,7 @@ class Worker
             }
         }
 
-        if($result['code'] == self::MAX_JOBS_EXIT_CODE) {
+        if(!$result['signal']) {
             $this->forkWorkers();
         }
     }
@@ -403,8 +397,6 @@ class Worker
 
                 pcntl_signal_dispatch();
             }
-
-            exit(self::MAX_JOBS_EXIT_CODE);
         }, false, false);
         $pid = $process->start();
         if($pid === false) {
