@@ -1,5 +1,5 @@
 <?php
-namespace Exception;
+namespace Wangjian\Queue\Exception;
 
 use Exception;
 
