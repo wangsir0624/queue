@@ -14,7 +14,7 @@ foreach([
 $console = new \Symfony\Component\Console\Application('queue consumer worker', '1.0.0');
 
 //add commands
-foreach(glob(__DIR__ . '/../src/Console/*.php') as $filename) {
+foreach(glob(__DIR__ . '/../src/Console/*Command.php') as $filename) {
     $className = "Wangjian\\Queue\\Console\\" . pathinfo($filename, PATHINFO_FILENAME);
     $console->add(new $className());
 }
