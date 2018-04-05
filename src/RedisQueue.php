@@ -3,6 +3,7 @@ namespace Wangjian\Queue;
 
 use Predis\Client;
 use Wangjian\Queue\Job\AbstractJob;
+use Wangjian\Queue\Job\TimedJob;
 
 class RedisQueue implements QueueInterface
 {
@@ -36,6 +37,10 @@ class RedisQueue implements QueueInterface
      */
     public function push(AbstractJob $job)
     {
+        if($job instanceof TimedJob && $job->getRunAt() > time()) {
+            return $this->addJobToRetrySet($job, $job->getRunAt());
+        }
+
         return (bool)$this->client->rpush(
             $this->getQueueNameWithPrefix($job->getQueue()),
             serialize($job)
@@ -72,11 +77,7 @@ class RedisQueue implements QueueInterface
     public function retry(AbstractJob $job)
     {
         if ($job->shouldRetry()) {
-            return $this->client->zadd(
-                $this->getRetryZsetNameWithPrefix($job->getQueue()),
-                $job->getRetryTime(),
-                serialize($job)
-            );
+            return $this->addJobToRetrySet($job, $job->getRetryTime());
         }
 
         return false;
@@ -113,6 +114,21 @@ LUA;
             $this->getRetryZsetNameWithPrefix($queue),
             $this->getQueueNameWithPrefix($queue),
             time()
+        );
+    }
+
+    /**
+     * add job to the retry set
+     * @param AbstractJob $job
+     * @param int $retryAt
+     * @return bool
+     */
+    protected function addJobToRetrySet($job, $retryAt)
+    {
+        return (bool)$this->client->zadd(
+            $this->getRetryZsetNameWithPrefix($job->getQueue()),
+            $retryAt,
+            serialize($job)
         );
     }
 
