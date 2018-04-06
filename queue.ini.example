@@ -1,0 +1,22 @@
+# 驱动配置
+QUEUE_ADAPTER=redis
+
+# 采用redis驱动
+QUEUE_REDIS_SCHEMA=tcp
+QUEUE_REDIS_HOST=127.0.0.1
+QUEUE_REDIS_PORT=6379
+QUEUE_REDIS_DATABASE=0
+QUEUE_REDIS_PASSWORD=root
+QUEUE_REDIS_PREFIX=test
+
+# 监听的队列名称，多个队列以英文逗号分隔，越左边的队列，优先级越高，只有当左边队列为空时，才会处理之后的队列
+QUEUE_WORK_QUEUES=test,default
+
+# worker进程数
+QUEUE_WORKERS=4
+
+# 当队列为空时，worker进程堵塞时间，如果间隔太小，会增大CPU占用
+QUEUE_SLEEP_INTERVAL=3
+
+# 每个worker进程能够处理的最大任务数，超过这个数目之后，会退出当前worker进程，并新增一个新worker进程，防止内存溢出
+QUEUE_MAX_JOBS=10000
