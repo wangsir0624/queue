@@ -24,7 +24,7 @@ class StopCommand extends Command
         exec("ps -ef | awk '$8 == \"queue:master:$workerName\" {print $2}'", $out, $return);
         if(empty($out)) {
             $output->writeln('<info>the worker is not running...</info>');
-            exit;
+            exit(1);
         }
 
         exec("ps -ef | awk '$8 == \"queue:master:$workerName\" {print $2}' | xargs kill", $out, $return);

@@ -2,7 +2,9 @@
 namespace Wangjian\Queue\Traits;
 
 use Predis\Client;
+use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
 use Wangjian\Queue\RedisQueue;
 use Exception;
 
@@ -17,6 +19,36 @@ trait CommandConfigTrait
 
         $this->addOption('environment', 'e', InputOption::VALUE_OPTIONAL|InputOption::VALUE_IS_ARRAY, 'environment variable')
             ->addOption('config', 'c', InputOption::VALUE_OPTIONAL, 'config file');
+    }
+
+    protected function loadConfigs(InputInterface $input, OutputInterface $output)
+    {
+        //parse the config files
+        $config = $input->getOption('config');
+        if(!is_null($config)) {
+            if($configFile = realpath($config)) {
+                if(($configs = parse_ini_file($configFile)) !== false) {
+                    $this->configVariables = $configs;
+                } else {
+                    $output->writeln('<info>the config file format is incorrect...</info>');
+                    exit;
+                }
+            } else {
+                $output->writeln('<info>the config file does not exist...</info>');
+                exit;
+            }
+        }
+
+        //parse the environment variables
+        foreach($input->getOption('environment') as $env) {
+            if(!$this->checkEnvironmentVariable($env)) {
+                $output->writeln('<info>the environment variables are not incorrect...</info>');
+                exit;
+            }
+
+            list($key, $value) = explode('=', $env, 2);
+            $this->environmentVariables[$key] = $value;
+        }
     }
 
     protected function createQueueInstance()

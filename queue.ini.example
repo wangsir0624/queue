@@ -9,6 +9,14 @@ QUEUE_REDIS_DATABASE=0
 QUEUE_REDIS_PASSWORD=root
 QUEUE_REDIS_PREFIX=test
 
+# 采用mysql驱动
+#QUEUE_MYSQL_HOST=127.0.0.1
+#QUEUE_MYSQL_PORT=3306
+#QUEUE_MYSQL_DATABASE=queue
+#QUEUE_MYSQL_USERNAME=root
+#QUEUE_MYSQL_PASSWORD=root
+#QUEUE_MYSQL_TABLENAME=queue
+
 # 监听的队列名称，多个队列以英文逗号分隔，越左边的队列，优先级越高，只有当左边队列为空时，才会处理之后的队列
 QUEUE_WORK_QUEUES=test,default
 
