@@ -31,6 +31,12 @@ abstract class AbstractJob
     protected $interval = 5;
 
     /**
+     * the run timestamp of the job
+     * @var int
+     */
+    protected $runAt = 0;
+
+    /**
      * the job id
      * @var string
      */
@@ -140,6 +146,27 @@ abstract class AbstractJob
     public function setInterval($interval)
     {
         $this->interval = $interval;
+
+        return $this;
+    }
+
+    /**
+     * get the run timestamp
+     * @return int
+     */
+    public function getRunAt()
+    {
+        return $this->runAt;
+    }
+
+    /**
+     * set the run timestamp
+     * @param int $runAt
+     * @return $this
+     */
+    public function setRunAt($runAt)
+    {
+        $this->runAt = $runAt;
 
         return $this;
     }

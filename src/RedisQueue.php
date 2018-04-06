@@ -37,7 +37,7 @@ class RedisQueue implements QueueInterface
      */
     public function push(AbstractJob $job)
     {
-        if($job instanceof TimedJob && $job->getRunAt() > time()) {
+        if($job->getRunAt() > time()) {
             return $this->addJobToRetrySet($job, $job->getRunAt());
         }
 
