@@ -35,20 +35,7 @@ class MigrateCommand extends Command
             case 'redis':
                 break;
             case 'mysql':
-                $dsn = 'mysql:host=%s;port=%s;dbname=%s';
-                $pdo = new PDO(sprintf(
-                    $dsn,
-                    $this->getConfig('QUEUE_MYSQL_HOST', '127.0.0.1'),
-                    $this->getConfig('QUEUE_MYSQL_PORT', 3306),
-                    $this->getConfig('QUEUE_MYSQL_DATABASE', 'test')
-                    ),
-                    $this->getConfig('QUEUE_MYSQL_USERNAME'),
-                    $this->getConfig('QUEUE_MYSQL_PASSWORD'),
-                    [
-                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-                    ]
-                );
-                $pdo->exec('set names utf8');
+                $pdo = $this->createPdo();
 
                 //check whether the queue table already exists
                 $table = $this->getConfig('QUEUE_MYSQL_TABLENAME', 'queue');

@@ -5,8 +5,10 @@ use Predis\Client;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Wangjian\Queue\MysqlQueue;
 use Wangjian\Queue\RedisQueue;
 use Exception;
+use PDO;
 
 trait CommandConfigTrait
 {
@@ -58,24 +60,51 @@ trait CommandConfigTrait
         $queueAdapter = $this->getConfig('QUEUE_ADAPTER', 'redis');
         switch($queueAdapter) {
             case 'redis':
-                $configs = [
-                    'schema' => $this->getConfig('QUEUE_REDIS_SCHEMA', 'tcp'),
-                    'host' => $this->getConfig('QUEUE_REDIS_HOST', '127.0.0.1'),
-                    'port' => $this->getConfig('QUEUE_REDIS_PORT', 6379),
-                    'database' => $this->getConfig('QUEUE_REDIS_DATABASE', 0)
-                ];
-                if(!is_null($password = $this->getConfig('QUEUE_REDIS_PASSWORD', null))) {
-                    $configs['password'] = $password;
-                }
-
-                $redisClient = new Client($configs);
-                $queue = new RedisQueue($redisClient, $this->getConfig('QUEUE_REDIS_PREFIX', ''));
+                $queue = new RedisQueue($this->createPredisClient(), $this->getConfig('QUEUE_REDIS_PREFIX', ''));
+                break;
+            case 'mysql':
+                $queue = new MysqlQueue($this->createPdo(), $this->getConfig('QUEUE_MYSQL_TABLENAME', 'queue'));
                 break;
             default:
                 throw new Exception('unsupported queue adapter...');
         }
 
         return $queue;
+    }
+
+    protected function createPredisClient()
+    {
+        $configs = [
+            'schema' => $this->getConfig('QUEUE_REDIS_SCHEMA', 'tcp'),
+            'host' => $this->getConfig('QUEUE_REDIS_HOST', '127.0.0.1'),
+            'port' => $this->getConfig('QUEUE_REDIS_PORT', 6379),
+            'database' => $this->getConfig('QUEUE_REDIS_DATABASE', 0)
+        ];
+        if(!is_null($password = $this->getConfig('QUEUE_REDIS_PASSWORD', null))) {
+            $configs['password'] = $password;
+        }
+
+        return new Client($configs);
+    }
+
+    protected function createPdo()
+    {
+        $dsn = 'mysql:host=%s;port=%s;dbname=%s';
+        $pdo = new PDO(sprintf(
+            $dsn,
+            $this->getConfig('QUEUE_MYSQL_HOST', '127.0.0.1'),
+            $this->getConfig('QUEUE_MYSQL_PORT', 3306),
+            $this->getConfig('QUEUE_MYSQL_DATABASE')
+        ),
+            $this->getConfig('QUEUE_MYSQL_USERNAME'),
+            $this->getConfig('QUEUE_MYSQL_PASSWORD'),
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+            ]
+        );
+        $pdo->exec('set names utf8');
+
+        return $pdo;
     }
 
     protected function checkEnvironmentVariable($raw)
