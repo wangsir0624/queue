@@ -1,35 +1,22 @@
 <?php
 namespace Wangjian\Queue\Console;
 
-use Predis\Client;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Wangjian\Queue\RedisQueue;
-use Exception;
-use Wangjian\Queue\Traits\CommandConfigTrait;
-use Wangjian\Queue\Worker;
-use PDO;
 
-class MigrateCommand extends Command
+class MigrateCommand extends ConfigCommandBase
 {
-    use CommandConfigTrait;
-
     protected function configure()
     {
         parent::configure();
 
         $this->setName('migrate')
-            ->setDescription('migrate the queue database')
-            ->prepareConfigOption();
+            ->setDescription('migrate the queue database');
     }
 
     public function execute(InputInterface $input, OutputInterface $output)
     {
-        //load the configs
-        $this->loadConfigs($input, $output);
+        parent::execute($input, $output);
 
         switch($this->getConfig('QUEUE_ADAPTER', 'redis')) {
             case 'redis':

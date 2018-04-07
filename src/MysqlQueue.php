@@ -27,12 +27,12 @@ class MysqlQueue implements QueueInterface
 
     public function pop($queue)
     {
-        $sql1 = "SELECT * FROM %s WHERE queue='%s' ORDER BY run_at ASC LIMIT 0, 1 FOR UPDATE";
+        $sql1 = "SELECT * FROM %s WHERE queue='%s' AND run_at<=%d ORDER BY run_at ASC LIMIT 0, 1 FOR UPDATE";
         $sql2 = "DELETE FROM %s WHERE ID=%d";
 
         $this->pdo->beginTransaction();
         try {
-            $row = $this->pdo->query(sprintf($sql1, $this->table, $queue))->fetch(PDO::FETCH_ASSOC);
+            $row = $this->pdo->query(sprintf($sql1, $this->table, $queue, time()))->fetch(PDO::FETCH_ASSOC);
             if(!empty($row)) {
                 $this->pdo->exec(sprintf($sql2, $this->table, $row['id']));
             }

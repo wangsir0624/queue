@@ -1,19 +1,15 @@
 <?php
 namespace Wangjian\Queue\Console;
 
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Exception;
-use Wangjian\Queue\Traits\CommandConfigTrait;
 use Wangjian\Queue\Worker;
 
-class StartCommand extends Command
+class StartCommand extends ConfigCommandBase
 {
-    use CommandConfigTrait;
-
     protected function configure()
     {
         parent::configure();
@@ -21,8 +17,7 @@ class StartCommand extends Command
         $this->setName('start')
             ->setDescription('start the queue consumer worker')
             ->addArgument('name', InputArgument::REQUIRED, 'the worker name')
-            ->addOption('bootstrap', 'b', InputOption::VALUE_OPTIONAL, 'bootstrap file')
-            ->prepareConfigOption();
+            ->addOption('bootstrap', 'b', InputOption::VALUE_OPTIONAL, 'bootstrap file');
     }
 
     public function execute(InputInterface $input, OutputInterface $output)
@@ -46,8 +41,7 @@ class StartCommand extends Command
             }
         }
 
-        //load the configs
-        $this->loadConfigs($input, $output);
+        parent::execute($input, $output);
 
         try {
             $queue = $this->createQueueInstance();

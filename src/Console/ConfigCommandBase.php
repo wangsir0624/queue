@@ -1,7 +1,8 @@
 <?php
-namespace Wangjian\Queue\Traits;
+namespace Wangjian\Queue\Console;
 
 use Predis\Client;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -10,20 +11,21 @@ use Wangjian\Queue\RedisQueue;
 use Exception;
 use PDO;
 
-trait CommandConfigTrait
+class ConfigCommandBase extends Command
 {
     protected $configVariables = [];
 
     protected $environmentVariables = [];
 
-    protected function prepareConfigOption()
+    protected function configure()
     {
+        parent::configure();
 
         $this->addOption('environment', 'e', InputOption::VALUE_OPTIONAL|InputOption::VALUE_IS_ARRAY, 'environment variable')
             ->addOption('config', 'c', InputOption::VALUE_OPTIONAL, 'config file');
     }
 
-    protected function loadConfigs(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output)
     {
         //parse the config files
         $config = $input->getOption('config');
