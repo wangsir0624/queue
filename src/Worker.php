@@ -10,6 +10,16 @@ use ErrorException;
 class Worker
 {
     /**
+     * restart policy constants
+     * @const int
+     */
+    const RESTART_NONE = 0b0;
+    const RESTART_ON_EXIT = 0b1;
+    const RESTART_ON_ERROR = 0b10;
+    const RESTART_ON_SIGNAL = 0b100;
+    const RESTART_ALL = 0b11111111;
+
+    /**
      * the worker name
      * @var string
      */
@@ -20,6 +30,12 @@ class Worker
      * @var callable
      */
     protected $work;
+
+    /**
+     * restart policy
+     * @var int
+     */
+    protected $restartPolicy;
 
     /**
      * the worker numbers
@@ -45,10 +61,11 @@ class Worker
      * @param QueueInterface $queue
      * @param Commander $commander
      */
-    public function __construct($name, callable $work)
+    public function __construct($name, callable $work, $restartPolicy = self::RESTART_NONE)
     {
         $this->name = $name;
         $this->work = $work;
+        $this->restartPolicy = $restartPolicy;
     }
 
     /**
@@ -70,6 +87,18 @@ class Worker
     public function getName()
     {
         return $this->name;
+    }
+
+    /**
+     * set the worker numbers
+     * @param int $workers
+     * @return $this
+     */
+    public function setWorkers($workers)
+    {
+        $this->workers = $workers;
+
+        return $this;
     }
 
     /**
@@ -127,8 +156,20 @@ class Worker
             }
         }
 
-        if(!$result['signal']) {
-            $this->forkWorkers();
+        if($result['signal'] > 0) {
+            if($this->restartPolicy & self::RESTART_ON_SIGNAL) {
+                $this->forkOneWorker();
+            }
+        } else {
+            if($result['code'] > 0) {
+                if($this->restartPolicy & self::RESTART_ON_ERROR) {
+                    $this->forkOneWorker();
+                }
+            } else {
+                if($this->restartPolicy & self::RESTART_ON_EXIT) {
+                    $this->forkOneWorker();
+                }
+            }
         }
     }
 
@@ -138,7 +179,7 @@ class Worker
     protected function forkWorkers()
     {
         while ($this->_workers < $this->workers) {
-            $this->createProcess();
+            $this->forkOneWorker();
         }
     }
 
@@ -146,7 +187,7 @@ class Worker
      * create a worker process
      * @return bool
      */
-    protected function createProcess()
+    protected function forkOneWorker()
     {
         $worker = $this;
 
