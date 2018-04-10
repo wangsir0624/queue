@@ -90,7 +90,7 @@ class StartCommand extends ConfigCommandBase
                 }
                 pcntl_signal_dispatch();
             }
-        });
+        }, Worker::RESTART_ON_EXIT | Worker::RESTART_ON_ERROR);
         $worker->setWorkers($this->getConfig('QUEUE_WORKERS', 4));
         $worker->setMaxErrorFrequency(
             $this->getConfig('QUEUE_MAX_ERROR_TIMES', 10),
