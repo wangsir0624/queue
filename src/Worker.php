@@ -44,6 +44,18 @@ class Worker
     protected $workers = 4;
 
     /**
+     * max error times in error interval. if exceed the maximum error frequency, the master will not fork new workers
+     * @var int
+     */
+    protected $maxErrorTimes = 10;
+
+    /**
+     * error interval
+     * @var int
+     */
+    protected $errorInterval = 1;
+
+    /**
      * the current workers
      * @var int
      */
@@ -54,6 +66,18 @@ class Worker
      * @var array
      */
     private $_workerProcesses = [];
+
+    /**
+     * whether to stop forking new workers on error
+     * @var bool
+     */
+    private $_disableRestartOnError = false;
+
+    /**
+     * the error timestamps
+     * @var array
+     */
+    private $_errors = [];
 
     /**
      * Worker constructor
@@ -97,6 +121,14 @@ class Worker
     public function setWorkers($workers)
     {
         $this->workers = $workers;
+
+        return $this;
+    }
+
+    public function setMaxErrorFrequency($maxErrorTimes, $errorInterval = 1)
+    {
+        $this->maxErrorTimes = $maxErrorTimes;
+        $this->errorInterval = $errorInterval;
 
         return $this;
     }
@@ -162,8 +194,15 @@ class Worker
             }
         } else {
             if($result['code'] > 0) {
-                if($this->restartPolicy & self::RESTART_ON_ERROR) {
-                    $this->forkOneWorker();
+                $this->_errors[] = microtime(true);
+
+                if($this->restartPolicy & self::RESTART_ON_ERROR && !$this->_disableRestartOnError) {
+                    if($this->tooManyErrors()) {
+                        //if exceed the maximum error frequency, stop forking new workers on error
+                        $this->_disableRestartOnError = true;
+                    } else {
+                        $this->forkOneWorker();
+                    }
                 }
             } else {
                 if($this->restartPolicy & self::RESTART_ON_EXIT) {
@@ -204,5 +243,19 @@ class Worker
         $this->_workers++;
         $this->_workerProcesses[$pid] = $process;
         return true;
+    }
+
+    /**
+     * whether exceed the maximum error frequency
+     * @return bool
+     */
+    protected function tooManyErrors()
+    {
+        $count = count($this->_errors);
+        if($count < $this->maxErrorTimes) {
+            return false;
+        }
+
+        return ($this->_errors[$count - 1] - $this->_errors[$count - $this->maxErrorTimes]) <= $this->errorInterval;
     }
 }
