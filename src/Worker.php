@@ -1,11 +1,8 @@
 <?php
 namespace Wangjian\Queue;
 
-use Wangjian\Queue\Job\AbstractJob;
 use swoole_process;
-use Exception;
 use Exception\SkipRetryException;
-use ErrorException;
 
 class Worker
 {

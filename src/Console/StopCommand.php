@@ -21,12 +21,12 @@ class StopCommand extends Command
     {
         //check whether the worker is running
         $workerName = $input->getArgument('name');
-        exec("ps -ef | awk '$8 == \"queue:master:$workerName\" {print $2}'", $out, $return);
+        exec("ps -ef | awk '$8 == \"queue:$workerName:master\" {print $2}'", $out, $return);
         if(empty($out)) {
             $output->writeln('<info>the worker is not running...</info>');
             exit(1);
         }
 
-        exec("ps -ef | awk '$8 == \"queue:master:$workerName\" {print $2}' | xargs kill", $out, $return);
+        exec("ps -ef | awk '$8 == \"queue:$workerName:master\" {print $2}' | xargs kill", $out, $return);
     }
 }

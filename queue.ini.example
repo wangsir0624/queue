@@ -18,13 +18,19 @@ QUEUE_REDIS_PREFIX=test
 #QUEUE_MYSQL_TABLENAME=queue
 
 # 监听的队列名称，多个队列以英文逗号分隔，越左边的队列，优先级越高，只有当左边队列为空时，才会处理之后的队列
-QUEUE_WORK_QUEUES=test,default
+QUEUE_WORK_QUEUES=default
 
 # worker进程数
 QUEUE_WORKERS=4
 
 # 当队列为空时，worker进程堵塞时间，如果间隔太小，会增大CPU占用
-QUEUE_SLEEP_INTERVAL=3
+QUEUE_SLEEP_INTERVAL=5
 
 # 每个worker进程能够处理的最大任务数，超过这个数目之后，会退出当前worker进程，并新增一个新worker进程，防止内存溢出
 QUEUE_MAX_JOBS=10000
+
+# 在QUEUE_ERROR_INTERVAL时间间隔内最大错误次数，如果超过这个错误次数，worker进程不会再重启
+QUEUE_MAX_ERROR_TIMES=10
+
+# 时间间隔
+QUEUE_ERROR_INTERVAL=1
