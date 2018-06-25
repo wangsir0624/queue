@@ -9,8 +9,14 @@
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 
-$pdo = new PDO('mysql:host=mysql;dbname=test', 'root', 'root');
-$queue = new \Wangjian\Queue\MysqlQueue($pdo, 'queue');
+$redis = new Predis\Client([
+    'schema' => $this->getConfig('QUEUE_REDIS_SCHEMA', 'tcp'),
+    'host' => $this->getConfig('QUEUE_REDIS_HOST', '127.0.0.1'),
+    'port' => $this->getConfig('QUEUE_REDIS_PORT', 6379),
+    'database' => $this->getConfig('QUEUE_REDIS_DATABASE', 0)
+]);
+
+$queue = new \Wangjian\Queue\RedisQueue($redis, 'queue');
 
 $queue->push((new \Wangjian\Queue\Job\TestJob()));
 ```
@@ -27,14 +33,8 @@ php bin/worker migrate  -c queue.ini
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 
-$redis = new Predis\Client([
-    'schema' => $this->getConfig('QUEUE_REDIS_SCHEMA', 'tcp'),
-    'host' => $this->getConfig('QUEUE_REDIS_HOST', '127.0.0.1'),
-    'port' => $this->getConfig('QUEUE_REDIS_PORT', 6379),
-    'database' => $this->getConfig('QUEUE_REDIS_DATABASE', 0)
-]);
-
-$queue = new \Wangjian\Queue\RedisQueue($redis, 'queue');
+$pdo = new PDO('mysql:host=mysql;dbname=test', 'root', 'root');
+$queue = new \Wangjian\Queue\MysqlQueue($pdo, 'queue');
 
 $queue->push((new \Wangjian\Queue\Job\TestJob()));
 ```
