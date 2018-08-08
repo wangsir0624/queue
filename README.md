@@ -78,4 +78,12 @@ php bin/worker start default -c queue.ini -e "QUEUE_SLEEP_INTERVAL=3"
 php bin/worker stop default
 ```
 
+### 重启消费者进程
+
+当修改了配置之后，可以直接执行此命令进行重启
+
+```bash
+php bin/worker reload default
+```
+
 
