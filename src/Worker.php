@@ -199,8 +199,12 @@ class Worker
 
     public function stopWorker($pid)
     {
-        $this->_noRestartProcesses[$pid] = true;
-        swoole_process::kill($pid, SIGTERM);
+        if(in_array($pid, $this->_workerProcesses)) {
+            swoole_process::kill($pid, SIGTERM);
+            unset($this->_workerProcesses[$pid]);
+            $this->_workers--;
+            $this->_noRestartProcesses[$pid] = true;
+        }
     }
 
     /**
@@ -209,12 +213,6 @@ class Worker
     protected function handleWorkerExit()
     {
         $result = swoole_process::wait();
-        foreach ($this->_workerProcesses as $key => $value) {
-            if ($key == $result['pid']) {
-                unset($this->_workerProcesses[$key]);
-                $this->_workers--;
-            }
-        }
 
         if(!empty($this->_noRestartProcesses[$result['pid']])) {
             unset($this->_noRestartProcesses[$result['pid']]);

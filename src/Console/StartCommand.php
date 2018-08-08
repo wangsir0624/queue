@@ -6,6 +6,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Exception;
+use Wangjian\Queue\Consumer;
 use Wangjian\Queue\Worker;
 use Wangjian\Queue\Job\AbstractJob;
 use Wangjian\Queue\Exception\SkipRetryException;
@@ -33,12 +34,7 @@ class StartCommand extends ConfigCommandBase
             exit(1);
         }
 
-        $this->doExecute($input, $output, $workerName);
-    }
-
-    protected function doExecute(InputInterface $input, OutputInterface $output, $workerName, $worker = null)
-    {
-        //load the bootstrap file
+        //get the bootstrap file
         $bootstrap = $input->getOption('bootstrap');
         if(!is_null($bootstrap)) {
             if(!($bootstrap = realpath($bootstrap))) {
@@ -47,10 +43,15 @@ class StartCommand extends ConfigCommandBase
             }
         }
 
+        $this->doExecute($input, $output, $workerName, $bootstrap);
+    }
+
+    protected function doExecute(InputInterface $input, OutputInterface $output, $workerName, $bootstrap, $worker = null)
+    {
         $this->loadConfig($input, $output);
 
         $command = $this;
-        $work = function(swoole_process $process) use ($command, $bootstrap, $input, $output) {
+        $work = function(swoole_process $process) use ($command, $bootstrap) {
             if(!empty($bootstrap)) {
                 require_once $bootstrap;
             }
@@ -66,29 +67,26 @@ class StartCommand extends ConfigCommandBase
             $maxJobs = $command->getConfig('QUEUE_MAX_JOBS', 10000);
             $queues = explode(',', $command->getConfig('QUEUE_WORK_QUEUES', 'default'));
             $sleepInterval = $command->getConfig('QUEUE_SLEEP_INTERVAL', 5);
-
             $queueInstance = $this->createQueueInstance();
+            $consumer = new Consumer($queueInstance, $queues);
             $processedJobs = 0;
             while ($processedJobs < $maxJobs) {
-                $job = null;
-                foreach ($queues as $queue) {
-                    $job = $queueInstance->pop($queue);
-                    if ($job instanceof AbstractJob) {
-                        break;
-                    }
-                }
+                $job = $consumer->consume();
+
                 if ($job instanceof AbstractJob) {
                     try {
                         if ($job->run() === false) {
                             throw new Exception('job run failed');
                         }
                     } catch (SkipRetryException $e) {
+
                     } catch (Exception $e) {
                         $job->failed();
                         if ($job->shouldRetry()) {
                             $queueInstance->retry($job);
                         }
                     }
+
                     $processedJobs++;
                 } else {
                     sleep($sleepInterval);
@@ -96,17 +94,18 @@ class StartCommand extends ConfigCommandBase
                 pcntl_signal_dispatch();
             }
         };
-        $worker = $worker ? $worker->setWork($work) : new Worker("queue:$workerName", $work, Worker::RESTART_ON_EXIT | Worker::RESTART_ON_ERROR);
-        $worker->setWorkers($this->getConfig('QUEUE_WORKERS', 4));
+
+        $workers = $this->getConfig('QUEUE_WORKERS', 4);
+        $worker = $worker ? $worker->setWorkers($workers) : new Worker("queue:$workerName", $this->getConfig('QUEUE_WORKERS', 4), Worker::RESTART_ON_EXIT | Worker::RESTART_ON_ERROR);
         $worker->setMaxErrorFrequency(
             $this->getConfig('QUEUE_MAX_ERROR_TIMES', 10),
             $this->getConfig('QUEUE_ERROR_INTERVAL', 1)
         );
-        $worker->run();
+        $worker->run($work);
 
-        swoole_process::signal(SIGUSR1, function() use ($command, $worker, $input, $output, $workerName) {
+        swoole_process::signal(SIGUSR1, function() use ($command, $worker, $input, $output, $workerName, $bootstrap) {
             $worker->stopAllWorkers();
-            $command->doExecute($input, $output, $workerName, $worker);
+            $command->doExecute($input, $output, $workerName, $bootstrap, $worker);
         });
     }
 }
