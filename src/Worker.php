@@ -2,7 +2,6 @@
 namespace Wangjian\Queue;
 
 use swoole_process;
-use Exception\SkipRetryException;
 
 class Worker
 {
@@ -77,10 +76,21 @@ class Worker
     private $_errors = [];
 
     /**
+     * don't restart the worker killed by the master
+     * @var array
+     */
+    private $_noRestartProcesses = [];
+
+    /**
+     * whether the worker is bootstrapped
+     */
+    private $_isBooted = false;
+
+    /**
      * Worker constructor
      * @param string $name  the worker name
-     * @param QueueInterface $queue
-     * @param Commander $commander
+     * @param callable $work
+     * @param int $restartPolicy
      */
     public function __construct($name, callable $work, $restartPolicy = self::RESTART_NONE)
     {
@@ -94,11 +104,8 @@ class Worker
      */
     public function run()
     {
-        swoole_set_process_name($this->name . ':master');
-
+        $this->bootstrap();
         $this->forkWorkers();
-
-        $this->installSignals();
     }
 
     /**
@@ -122,12 +129,43 @@ class Worker
         return $this;
     }
 
+    /**
+     * @param $maxErrorTimes
+     * @param int $errorInterval
+     * @return $this
+     */
     public function setMaxErrorFrequency($maxErrorTimes, $errorInterval = 1)
     {
         $this->maxErrorTimes = $maxErrorTimes;
         $this->errorInterval = $errorInterval;
 
         return $this;
+    }
+
+    /**
+     * set the work
+     * @param callable $work
+     * @return $this
+     */
+    public function setWork(callable $work)
+    {
+        $this->work = $work;
+
+        return $this;
+    }
+
+    /**
+     * bootstrap the worker
+     */
+    protected function bootstrap()
+    {
+        if($this->_isBooted) {
+            return;
+        }
+
+        swoole_set_process_name($this->name . ':master');
+        $this->installSignals();
+        $this->_isBooted = true;
     }
 
     /**
@@ -163,13 +201,17 @@ class Worker
     /**
      * kill all workers
      */
-    protected function stopAllWorkers()
+    public function stopAllWorkers()
     {
         foreach($this->_workerProcesses as $pid => $process) {
-            swoole_process::kill($pid, SIGTERM);
-            unset($this->_workerProcesses[$pid]);
-            $this->_workers--;
+            $this->stopWorker($pid);
         }
+    }
+
+    public function stopWorker($pid)
+    {
+        $this->_noRestartProcesses = array_merge($this->_noRestartProcesses, [$pid]);
+        swoole_process::kill($pid, SIGTERM);
     }
 
     /**
@@ -183,6 +225,13 @@ class Worker
                 unset($this->_workerProcesses[$key]);
                 $this->_workers--;
             }
+        }
+
+        if(in_array($result['pid'], $this->_noRestartProcesses)) {
+            $tmp = $result['pid'];
+            array_filter($this->_noRestartProcesses, function ($item) use ($tmp) {
+                return $item != $tmp;
+            });
         }
 
         if($result['signal'] > 0) {

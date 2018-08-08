@@ -33,6 +33,11 @@ class StartCommand extends ConfigCommandBase
             exit(1);
         }
 
+        $this->doExecute($input, $output, $workerName);
+    }
+
+    protected function doExecute(InputInterface $input, OutputInterface $output, $workerName, $worker = null)
+    {
         //load the bootstrap file
         $bootstrap = $input->getOption('bootstrap');
         if(!is_null($bootstrap)) {
@@ -45,7 +50,7 @@ class StartCommand extends ConfigCommandBase
         parent::execute($input, $output);
 
         $command = $this;
-        $worker = new Worker("queue:$workerName", function(swoole_process $process) use ($command, $bootstrap, $input, $output) {
+        $work = function(swoole_process $process) use ($command, $bootstrap, $input, $output) {
             if(!empty($bootstrap)) {
                 require_once $bootstrap;
             }
@@ -90,12 +95,18 @@ class StartCommand extends ConfigCommandBase
                 }
                 pcntl_signal_dispatch();
             }
-        }, Worker::RESTART_ON_EXIT | Worker::RESTART_ON_ERROR);
+        };
+        $worker = $worker ? $worker->setWork($work) : new Worker("queue:$workerName", $work, Worker::RESTART_ON_EXIT | Worker::RESTART_ON_ERROR);
         $worker->setWorkers($this->getConfig('QUEUE_WORKERS', 4));
         $worker->setMaxErrorFrequency(
             $this->getConfig('QUEUE_MAX_ERROR_TIMES', 10),
             $this->getConfig('QUEUE_ERROR_INTERVAL', 1)
         );
         $worker->run();
+
+        swoole_process::signal(SIGUSR1, function() use ($command, $worker, $input, $output, $workerName) {
+            $worker->stopAllWorkers();
+            $command->doExecute($input, $output, $workerName, $worker);
+        });
     }
 }
