@@ -25,7 +25,7 @@ class ConfigCommandBase extends Command
             ->addOption('config', 'c', InputOption::VALUE_OPTIONAL, 'config file');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function loadConfig(InputInterface $input, OutputInterface $output)
     {
         //parse the config files
         $config = $input->getOption('config');

@@ -47,7 +47,7 @@ class StartCommand extends ConfigCommandBase
             }
         }
 
-        parent::execute($input, $output);
+        $this->loadConfig($input, $output);
 
         $command = $this;
         $work = function(swoole_process $process) use ($command, $bootstrap, $input, $output) {

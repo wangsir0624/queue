@@ -16,7 +16,7 @@ class MigrateCommand extends ConfigCommandBase
 
     public function execute(InputInterface $input, OutputInterface $output)
     {
-        parent::execute($input, $output);
+        $this->loadConfig($input, $output);
 
         switch($this->getConfig('QUEUE_ADAPTER', 'redis')) {
             case 'redis':
