@@ -199,7 +199,7 @@ class Worker
 
     public function stopWorker($pid)
     {
-        if(in_array($pid, $this->_workerProcesses)) {
+        if(!empty($this->_workerProcesses[$pid])) {
             swoole_process::kill($pid, SIGTERM);
             unset($this->_workerProcesses[$pid]);
             $this->_workers--;
