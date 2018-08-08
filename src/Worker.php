@@ -22,12 +22,6 @@ class Worker
     protected $name;
 
     /**
-     * work
-     * @var callable
-     */
-    protected $work;
-
-    /**
      * restart policy
      * @var int
      */
@@ -50,6 +44,12 @@ class Worker
      * @var int
      */
     protected $errorInterval = 1;
+
+    /**
+     * work
+     * @var callable
+     */
+    private $_work;
 
     /**
      * the current workers
@@ -92,19 +92,20 @@ class Worker
      * @param callable $work
      * @param int $restartPolicy
      */
-    public function __construct($name, callable $work, $restartPolicy = self::RESTART_NONE)
+    public function __construct($name, $workers = 4, $restartPolicy = self::RESTART_NONE)
     {
         $this->name = $name;
-        $this->work = $work;
+        $this->workers = $workers;
         $this->restartPolicy = $restartPolicy;
     }
 
     /**
      * run the worker
      */
-    public function run()
+    public function run(callable $work)
     {
         $this->bootstrap();
+        $this->_work = $work;
         $this->forkWorkers();
     }
 
@@ -138,18 +139,6 @@ class Worker
     {
         $this->maxErrorTimes = $maxErrorTimes;
         $this->errorInterval = $errorInterval;
-
-        return $this;
-    }
-
-    /**
-     * set the work
-     * @param callable $work
-     * @return $this
-     */
-    public function setWork(callable $work)
-    {
-        $this->work = $work;
 
         return $this;
     }
@@ -210,7 +199,7 @@ class Worker
 
     public function stopWorker($pid)
     {
-        $this->_noRestartProcesses = array_merge($this->_noRestartProcesses, [$pid]);
+        $this->_noRestartProcesses[$pid] = true;
         swoole_process::kill($pid, SIGTERM);
     }
 
@@ -227,11 +216,9 @@ class Worker
             }
         }
 
-        if(in_array($result['pid'], $this->_noRestartProcesses)) {
-            $tmp = $result['pid'];
-            array_filter($this->_noRestartProcesses, function ($item) use ($tmp) {
-                return $item != $tmp;
-            });
+        if(!empty($this->_noRestartProcesses[$result['pid']])) {
+            unset($this->_noRestartProcesses[$result['pid']]);
+            return;
         }
 
         if($result['signal'] > 0) {
@@ -279,7 +266,7 @@ class Worker
         $process = new swoole_process(function (swoole_process $process) use ($worker) {
             swoole_set_process_name($worker->name . ':worker');
 
-            call_user_func($worker->work, $process);
+            call_user_func($worker->_work, $process);
         }, false, false);
         $pid = $process->start();
         if($pid === false) {
