@@ -7,6 +7,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Exception;
 use Wangjian\Queue\Consumer;
+use Wangjian\Queue\Traits\Daemonize;
 use Wangjian\Queue\Worker;
 use Wangjian\Queue\Job\AbstractJob;
 use Wangjian\Queue\Exception\SkipRetryException;
@@ -14,6 +15,8 @@ use swoole_process;
 
 class StartCommand extends ConfigCommandBase
 {
+    use Daemonize;
+
     protected function configure()
     {
         parent::configure();
@@ -21,7 +24,8 @@ class StartCommand extends ConfigCommandBase
         $this->setName('start')
             ->setDescription('start the queue consumer worker')
             ->addArgument('name', InputArgument::REQUIRED, 'the worker name')
-            ->addOption('bootstrap', 'b', InputOption::VALUE_OPTIONAL, 'bootstrap file');
+            ->addOption('bootstrap', 'b', InputOption::VALUE_OPTIONAL, 'bootstrap file')
+            ->addOption('daemon', 'd', InputOption::VALUE_OPTIONAL, 'whether run as a daemon');
     }
 
     public function execute(InputInterface $input, OutputInterface $output)
@@ -41,6 +45,10 @@ class StartCommand extends ConfigCommandBase
                 $output->writeln('<info>the bootstrap file does not exist...</info>');
                 exit(1);
             }
+        }
+
+        if($input->hasOption('daemon')) {
+            $this->daemonize();
         }
 
         $this->doExecute($input, $output, $workerName, $bootstrap);
