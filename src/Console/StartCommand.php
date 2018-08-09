@@ -51,7 +51,14 @@ class StartCommand extends ConfigCommandBase
         $this->loadConfig($input, $output);
 
         $command = $this;
-        $work = function(swoole_process $process) use ($command, $bootstrap) {
+
+        $workers = $this->getConfig('QUEUE_WORKERS', 4);
+        $worker = $worker ? $worker->setWorkers($workers) : new Worker("queue:$workerName", $workers, Worker::RESTART_ON_EXIT | Worker::RESTART_ON_ERROR);
+        $worker->setMaxErrorFrequency(
+            $this->getConfig('QUEUE_MAX_ERROR_TIMES', 10),
+            $this->getConfig('QUEUE_ERROR_INTERVAL', 1)
+        );
+        $worker->run(function(swoole_process $process) use ($command, $bootstrap) {
             if(!empty($bootstrap)) {
                 require_once $bootstrap;
             }
@@ -93,15 +100,7 @@ class StartCommand extends ConfigCommandBase
                 }
                 pcntl_signal_dispatch();
             }
-        };
-
-        $workers = $this->getConfig('QUEUE_WORKERS', 4);
-        $worker = $worker ? $worker->setWorkers($workers) : new Worker("queue:$workerName", $this->getConfig('QUEUE_WORKERS', 4), Worker::RESTART_ON_EXIT | Worker::RESTART_ON_ERROR);
-        $worker->setMaxErrorFrequency(
-            $this->getConfig('QUEUE_MAX_ERROR_TIMES', 10),
-            $this->getConfig('QUEUE_ERROR_INTERVAL', 1)
-        );
-        $worker->run($work);
+        });
 
         swoole_process::signal(SIGUSR1, function() use ($command, $worker, $input, $output, $workerName, $bootstrap) {
             $worker->stopAllWorkers();
