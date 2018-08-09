@@ -73,7 +73,7 @@ class MysqlQueue implements QueueInterface, MigrateInterface
 CREATE TABLE %s (
   id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
   queue VARCHAR(100) NOT NULL COMMENT '队列名称',
-  job VARCHAR(1024) NOT NULL COMMENT 'job对象json字符串',
+  job TEXT NOT NULL COMMENT 'job对象json字符串',
   run_at INT(11) UNSIGNED NOT NULL COMMENT 'job运行时间戳',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_queue_run_at(queue, run_at),
