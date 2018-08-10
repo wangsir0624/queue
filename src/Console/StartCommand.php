@@ -25,7 +25,7 @@ class StartCommand extends ConfigCommandBase
             ->setDescription('start the queue consumer worker')
             ->addArgument('name', InputArgument::REQUIRED, 'the worker name')
             ->addOption('bootstrap', 'b', InputOption::VALUE_OPTIONAL, 'bootstrap file')
-            ->addOption('daemon', 'd', InputOption::VALUE_OPTIONAL, 'whether run as a daemon');
+            ->addOption('daemon', 'd', InputOption::VALUE_NONE, 'whether run as a daemon');
     }
 
     public function execute(InputInterface $input, OutputInterface $output)
@@ -47,7 +47,7 @@ class StartCommand extends ConfigCommandBase
             }
         }
 
-        if($input->hasOption('daemon')) {
+        if($input->getOption('daemon')) {
             $this->daemonize();
         }
 
